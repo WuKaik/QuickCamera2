@@ -23,7 +23,6 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
-import android.widget.Toast;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -33,7 +32,8 @@ import java.util.Comparator;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    public static final String TAG=MainActivity.class.getSimpleName();
+    public static final String TAG = MainActivity.class.getSimpleName();
+    public static final int REQUEST_CODE_PREMISSION = 1;
 
     private TextureView textureView;
     private String mCameraId;//摄像头ID
@@ -51,17 +51,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        mHandlerThread=new HandlerThread("QuickCamera");
+        mHandlerThread = new HandlerThread("QuickCamera");
         mHandlerThread.start();
-        mHandler=new Handler(mHandlerThread.getLooper());
-        mCameraManager=(CameraManager) getSystemService(CAMERA_SERVICE);
-        textureView=findViewById(R.id.textureView);
+        mHandler = new Handler(mHandlerThread.getLooper());
+        mCameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
+        textureView = findViewById(R.id.textureView);
         textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                Log.d(TAG, "onSurfaceTextureAvailable: width:"+width+"height:"+height);
+                Log.d(TAG, "onSurfaceTextureAvailable: width:" + width + "height:" + height);
                 //选择摄像头
-                setCamera(width,height);
+                setCamera(width, height);
                 //打开摄像头
                 openCamera();
             }
@@ -85,27 +85,26 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 设置相机
+     *
      * @param width
      * @param height
      */
-    private void setCamera(int width,int height)
-    {
+    private void setCamera(int width, int height) {
         try {
             //遍历所有摄像头
-            for (String cameraId:mCameraManager.getCameraIdList()){
-                CameraCharacteristics characteristics=mCameraManager.getCameraCharacteristics(cameraId);
+            for (String cameraId : mCameraManager.getCameraIdList()) {
+                CameraCharacteristics characteristics = mCameraManager.getCameraCharacteristics(cameraId);
                 //默认打开前置摄像头
-                if(characteristics.get(CameraCharacteristics.LENS_FACING)==CameraCharacteristics.LENS_FACING_FRONT)
-                {
+                if (characteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT) {
                     continue;
                 }
                 //获取StreamConfigurationMap，它是管理摄像头支持的所有输出格式和尺寸
-                StreamConfigurationMap map=characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 //根据TextureView的尺寸设置预览尺寸
-                mPreviewSize=getOptimalSize(map.getOutputSizes(SurfaceTexture.class), width, height);
-                Log.d(TAG, "预览Size: width:"+mPreviewSize.getWidth()+" height:"+mPreviewSize.getHeight());
-                mCameraId=cameraId;
-                Log.d(TAG, "摄像头Id: "+cameraId);
+                mPreviewSize = getOptimalSize(map.getOutputSizes(SurfaceTexture.class), width, height);
+                Log.d(TAG, "预览Size: width:" + mPreviewSize.getWidth() + " height:" + mPreviewSize.getHeight());
+                mCameraId = cameraId;
+                Log.d(TAG, "摄像头Id: " + cameraId);
             }
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -114,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 从摄像头支持的预览Size中选择大于并且最接近width和height的size
+     *
      * @param sizeMap
      * @param width
      * @param height
@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
     private Size getOptimalSize(Size[] sizeMap, int width, int height) {
         List<Size> sizeList = new ArrayList<>();
         for (Size option : sizeMap) {
-            Log.d(TAG, "系统支持的尺寸大小==width:"+option.getWidth()+" height:"+option.getHeight());
+            Log.d(TAG, "系统支持的尺寸大小==width:" + option.getWidth() + " height:" + option.getHeight());
             if (width > height) {
                 if (option.getWidth() > width && option.getHeight() > height) {
                     sizeList.add(option);
@@ -141,18 +141,21 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
-        return sizeList.get(0);
+        if (sizeList.size() > 0)
+            return sizeList.get(0);
+        return sizeMap[0];
     }
 
     /**
      * 打开摄像头
      */
-    private void openCamera()
-    {
+    private void openCamera() {
         //检查权限
         try {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this,"must add camera premission",Toast.LENGTH_SHORT).show();
+                //Toast.makeText(MainActivity.this,"must add camera premission",Toast.LENGTH_SHORT).show();
+                //运行时权限
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, REQUEST_CODE_PREMISSION);
                 return;
             }
             //打开相机，第一个参数指示打开哪个摄像头，第二个参数stateCallback为相机的状态回调接口，第三个参数用来确定Callback在哪个线程执行，为null的话就在当前线程执行
@@ -165,11 +168,11 @@ public class MainActivity extends AppCompatActivity {
     /**
      * 摄像头打开状态监听回调接口对象
      */
-    private CameraDevice.StateCallback mDeviceStateCallback =new CameraDevice.StateCallback() {
+    private CameraDevice.StateCallback mDeviceStateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
             Log.d(TAG, "CameraDevice.StateCallback onOpened: ");
-            mCameraDevice=camera;
+            mCameraDevice = camera;
             startPreview();
         }
 
@@ -189,20 +192,19 @@ public class MainActivity extends AppCompatActivity {
      * 使用TextureView显示相机预览数据
      * Camera2的预览和拍照数据都是使用CameraCaptureSession会话来请求的
      */
-    private void startPreview()
-    {
-        SurfaceTexture surfaceTexture=textureView.getSurfaceTexture();
+    private void startPreview() {
+        SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
         //设置TextureView缓冲区大小
-        surfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
+        surfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
         //获取Surface显示数据
-        Surface surface=new Surface(surfaceTexture);
+        Surface surface = new Surface(surfaceTexture);
         try {
             //设置捕获请求为预览（还有其它，如拍照、录像）
-            mCaptureBuilder=mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            mCaptureBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             //可以通过这个set(key,value)方法，设置曝光啊，自动聚焦等参数！！
             //mCaptureBuilder.set(CaptureRequest.CONTROL_AE_MODE,CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-            //获取ImageReader
-            mReader=ImageReader.newInstance(mPreviewSize.getWidth(),mPreviewSize.getHeight(), ImageFormat.YUV_420_888,2);
+            //获取ImageReader(ImageFormat不要使用jpeg,预览会出现卡顿)
+            mReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(), ImageFormat.YUV_420_888, 2);
             //设置有图像数据流时监听
             mReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
                 @Override
@@ -216,23 +218,23 @@ public class MainActivity extends AppCompatActivity {
                     //Log.d(TAG, "onImageAvailable: data size"+data.length);
                     image.close();
                 }
-            },mHandler);
+            }, mHandler);
             //设置预览界面为数据的显示
             mCaptureBuilder.addTarget(surface);
             mCaptureBuilder.addTarget(mReader.getSurface());
             //创建相机捕获会话
-            mCameraDevice.createCaptureSession(Arrays.asList(surface,mReader.getSurface()),mCaptureStateCallback,mHandler);
+            mCameraDevice.createCaptureSession(Arrays.asList(surface, mReader.getSurface()), mCaptureStateCallback, mHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
-    private CameraCaptureSession.StateCallback mCaptureStateCallback=new CameraCaptureSession.StateCallback() {
+    private CameraCaptureSession.StateCallback mCaptureStateCallback = new CameraCaptureSession.StateCallback() {
         @Override
         public void onConfigured(@NonNull CameraCaptureSession session) {
             //创建捕获请求
-            mCaptureRequest=mCaptureBuilder.build();
-            mCameraSession=session;
+            mCaptureRequest = mCaptureBuilder.build();
+            mCameraSession = session;
             try {
                 //设置反复捕获数据的请求，这样预览界面就会一直有数据显示
                 mCameraSession.setRepeatingRequest(mCaptureRequest, null, mHandler);
@@ -267,4 +269,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == REQUEST_CODE_PREMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                openCamera();
+            }
+        }
+    }
 }
